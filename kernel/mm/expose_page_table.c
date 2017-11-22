@@ -13,7 +13,6 @@ int expose_page_table(pid_t pid,
 	struct task_struct *p;
 	pgd_t *pgd;
 	pmd_t *pmd;
-	pte_t *ptep, pte;
 
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);
