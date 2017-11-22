@@ -24,7 +24,7 @@ int expose_page_table(pid_t pid,
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 
-		pgd = ;//
+		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);//
 		if (pgd_none(*pgd) || pgd_bad(*pgd)) {
 			temp_pgd += sizeof(unsigned long);
 			continue;
@@ -36,7 +36,7 @@ int expose_page_table(pid_t pid,
 		temp_pgd += sizeof(unsigned long);
 
 		for (j = 0; j < PTRS_PER_PMD; j++) {
-			pmd = ;//
+			pmd = pmd_offset(pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 			if (pmd_none(*pmd) || pmd_bad(*pmd)) {
 				temp_pmds += sizeof(unsigned long);
 				continue;
