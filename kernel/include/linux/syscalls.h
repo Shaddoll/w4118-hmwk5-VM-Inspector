@@ -213,13 +213,13 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 #endif
 
 asmlinkage long sys_get_pagetable_layout(struct pagetable_layout_info __user * pgtbl_info,
-                                        int size);
+					int size);
 asmlinkage long sys_expose_page_table(pid_t pid,
-                                      unsigned long fake_pgd,
-                                      unsigned long fake_pmds,
-                                      unsigned long page_table_addr,
-                                      unsigned long begin_vaddr,
-                                      unsigned long end_vaddr);
+					unsigned long fake_pgd,
+					unsigned long fake_pmds,
+					unsigned long page_table_addr,
+					unsigned long begin_vaddr,
+					unsigned long end_vaddr);
 
 asmlinkage long sys_time(time_t __user *tloc);
 asmlinkage long sys_stime(time_t __user *tptr);
