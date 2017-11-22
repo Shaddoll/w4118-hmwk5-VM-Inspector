@@ -7,12 +7,17 @@ SYSCALL_DEFINE2(get_pagetable_layout,
 		struct pagetable_layout_info *, pgtbl_info
 		int, size)
 {
-	struct pagetable_layout_info pli;
-	pli.pgdir_shift = PGDIR_SHIFT;
-	pli.pmd_shift = PMD_SHIFT;
-	pli.page_shift = PAGE_SHIFT;
+	struct pagetable_layout_info k_pgtbl_info;
+	k_pgtbl_info.pgdir_shift = PGDIR_SHIFT;
+	k_pgtbl_info.pmd_shift = PMD_SHIFT;
+	k_pgtbl_info.page_shift = PAGE_SHIFT;
 	
-	if (copy_to_user() != 0) {
-	}
+	if (size != sizeof(struct pagetable_layout_info))
+		return -EFAULT;
+	
+	if (copy_to_user(pgtbl_info, k_pgtbl_info, size) != 0)
+		return -EFAULT;
+	
+	return 0;
 }
 
