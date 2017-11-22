@@ -16,10 +16,11 @@ int expose_page_table(pid_t pid,
 
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);
-	//lock
 	rcu_read_unlock();
 
+	read_lock(&tasklist_lock);
 
+	read_unlock(&tasklist_lock);
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 
