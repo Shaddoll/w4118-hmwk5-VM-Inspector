@@ -12,8 +12,8 @@ int expose_page_table(pid_t pid,
 		  unsigned long page_table_addr,
 		  unsigned long begin_vaddr,
 		  unsigned long end_vaddr) {
-	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr, phys;
-	int i,j,k,ret,lockid;
+	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr, phys, i, j, k;
+	int ret,lockid;
 
 	struct task_struct *p;
 	pgd_t *pgd;
