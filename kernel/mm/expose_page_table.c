@@ -63,13 +63,13 @@ int expose_page_table(pid_t pid,
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
-			phys = page_to_pfn(pmd_page(*pmd));
+			//phys = page_to_pfn(pmd_page(*pmd));
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
-			if (remap_pfn_range(vma, temp_pte, phys, PAGE_SIZE, vma->vm_page_prot))
+			if (remap_pfn_range(vma, temp_pte, pmd, PAGE_SIZE, vma->vm_page_prot))
 				return -EAGAIN;
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
