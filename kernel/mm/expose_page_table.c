@@ -22,9 +22,13 @@ int expose_page_table(pid_t pid,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	
-	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	rcu_read_unlock();
+	if (pid == -1)
+		p = current;
+	else {
+		rcu_read_lock();
+		p = find_task_by_vpid(pid);
+		rcu_read_unlock();
+	}
 
 	if (p == NULL)
 		return -EINVAL;
