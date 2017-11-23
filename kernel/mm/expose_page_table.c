@@ -12,13 +12,12 @@ int expose_page_table(pid_t pid,
 		  unsigned long page_table_addr,
 		  unsigned long begin_vaddr,
 		  unsigned long end_vaddr) {
-	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr;
+	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr, phys;
 	int i,j,k,ret,lockid;
 
 	struct task_struct *p;
 	pgd_t *pgd;
 	pmd_t *pmd;
-	pte_t *pte;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	
@@ -64,14 +63,13 @@ int expose_page_table(pid_t pid,
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
-
+			phys = page_to_pfn(pmd_page(*pmd));
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
-			pte = pte_offset_map(pmd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
-			if (remap_pfn_range(vma, temp_pte, pte, PAGE_SIZE, vma->vm_page_prot))
+			if (remap_pfn_range(vma, temp_pte, phys, PAGE_SIZE, vma->vm_page_prot))
 				return -EAGAIN;
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
