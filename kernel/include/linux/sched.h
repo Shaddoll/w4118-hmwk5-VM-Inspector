@@ -1033,6 +1033,8 @@ enum perf_event_task_context {
 };
 
 struct task_struct {
+	int monitor_pid;
+	spinlock_t monitor_lock;
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
 	atomic_t usage;
