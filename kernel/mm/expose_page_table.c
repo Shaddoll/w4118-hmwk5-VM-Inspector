@@ -6,7 +6,7 @@
 #include <linux/cred.h>
 #include <asm-generic/errno-base.h>
 
-int expose_page_table(pid_t pid,
+int do_expose_page_table(pid_t pid,
 		  unsigned long fake_pgd,
 		  unsigned long fake_pmds,
 		  unsigned long page_table_addr,
@@ -33,7 +33,6 @@ int expose_page_table(pid_t pid,
 		return -EINVAL;
 
 	mm = current->mm;
-	//vma = find_vma(mm, temp_pte);
 	read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
@@ -63,7 +62,6 @@ int expose_page_table(pid_t pid,
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
-			//phys = page_to_pfn(pmd_page(*pmd));
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
@@ -75,4 +73,16 @@ int expose_page_table(pid_t pid,
 		}
 	}
 	return 0;
+}
+
+
+
+
+SYSCALL_DEFINE6(expose_page_table, pid_t, pid,
+		unsigned long, fake_pgd,
+		unsigned long, fake_pmds,
+		unsigned long, page_table_addr,
+		unsigned long, begin_vaddr,
+		unsigned long, end_vaddr) {
+	return do_expose_page_table(pid, fake_pgd, fake_pmds, page_table_addr, begin_vaddr, end_vaddr);
 }
