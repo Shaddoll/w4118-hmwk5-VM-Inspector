@@ -161,9 +161,9 @@ extern struct task_group root_task_group;
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
  */
 #define INIT_TASK(tsk)	\
-{
+{									\
 	.monitor_pid	= -1,						\
-	.monitor_lock	= __SPIN_LOCK_UNLOCKED(tsk.monitor_lock)	\
+	.monitor_lock	= __SPIN_LOCK_UNLOCKED(tsk.monitor_lock),	\
 	.state		= 0,						\
 	.stack		= &init_thread_info,				\
 	.usage		= ATOMIC_INIT(2),				\

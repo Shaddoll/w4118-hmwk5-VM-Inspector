@@ -6,19 +6,18 @@
 #include <linux/cred.h>
 #include <asm-generic/errno-base.h>
 
-int expose_page_table(pid_t pid,
+int do_expose_page_table(pid_t pid,
 		  unsigned long fake_pgd,
 		  unsigned long fake_pmds,
 		  unsigned long page_table_addr,
 		  unsigned long begin_vaddr,
 		  unsigned long end_vaddr) {
-	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr;
-	int i,j,k,ret,lockid;
+	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr, phys, i, j, k;
+	int ret,lockid;
 
 	struct task_struct *p;
 	pgd_t *pgd;
 	pmd_t *pmd;
-	pte_t *pte;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	
@@ -34,7 +33,6 @@ int expose_page_table(pid_t pid,
 		return -EINVAL;
 
 	mm = current->mm;
-	//vma = find_vma(mm, temp_pte);
 	read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
@@ -64,16 +62,27 @@ int expose_page_table(pid_t pid,
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
-
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
-			if (remap_pfn_range(vma, temp_pte, pte, PAGE_SIZE, vma->vm_page_prot))
+			if (remap_pfn_range(vma, temp_pte, pmd, PAGE_SIZE, vma->vm_page_prot))
 				return -EAGAIN;
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
 	return 0;
+}
+
+
+
+
+SYSCALL_DEFINE6(expose_page_table, pid_t, pid,
+		unsigned long, fake_pgd,
+		unsigned long, fake_pmds,
+		unsigned long, page_table_addr,
+		unsigned long, begin_vaddr,
+		unsigned long, end_vaddr) {
+	return do_expose_page_table(pid, fake_pgd, fake_pmds, page_table_addr, begin_vaddr, end_vaddr);
 }

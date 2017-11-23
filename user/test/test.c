@@ -20,7 +20,7 @@ void print_page_table(unsigned long fake_pgd,
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
 			if (verbose)
-				printf("%lx %lx %d %d %d %d %d\n",
+				printf("0x%lx 0x%lx %d %d %d %d %d\n",
 					page, 0L, 0, 0, 0, 0, 0);
 			continue;
 		}
@@ -28,13 +28,13 @@ void print_page_table(unsigned long fake_pgd,
 		pmd_entry = pmd_ptr[pmd_index(page)];
 		if (pmd_entry == 0) {
 			if (verbose)
-				printf("%lx %lx %d %d %d %d %d\n",
+				printf("0x%lx 0x%lx %d %d %d %d %d\n",
 					page, 0L, 0, 0, 0, 0, 0);
 			continue;
 		}
 		pte_ptr = (unsigned long *)pmd_entry;
 		pte_entry = pte_ptr[pte_index(page)];
-		printf("%lx %lx %d %d %d %d %d\n", page,
+		printf("0x%lx 0x%lx %d %d %d %d %d\n", page,
 			get_phys_addr(pte_entry), young_bit(pte_entry),
 			file_bit(pte_entry), dirty_bit(pte_entry),
 			readonly_bit(pte_entry), uxn_bit(pte_entry));
