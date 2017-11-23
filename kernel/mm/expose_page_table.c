@@ -64,6 +64,7 @@ int expose_page_table(pid_t pid,
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
+			pte = pte_offset_map(pmd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
 			if (remap_pfn_range(vma, temp_pte, pte, PAGE_SIZE, vma->vm_page_prot))
