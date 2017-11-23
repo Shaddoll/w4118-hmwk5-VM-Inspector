@@ -4,7 +4,7 @@
 
 
 SYSCALL_DEFINE2(get_pagetable_layout,
-		struct pagetable_layout_info *, pgtbl_info
+		struct pagetable_layout_info __user *, pgtbl_info
 		int, size)
 {
 	struct pagetable_layout_info k_pgtbl_info;
