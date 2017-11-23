@@ -1,5 +1,10 @@
-
-
+#include <linux/sched.h>
+#include <linux/spinlock.h>
+#include <linux/rcupdate.h>
+#include <linux/syscalls.h>
+#include <linux/kernel.h>
+#include <linux/cred.h>
+#include <asm-generic/errno-base.h>
 
 int expose_page_table(pid_t pid,
 		  unsigned long fake_pgd,
@@ -8,19 +13,33 @@ int expose_page_table(pid_t pid,
 		  unsigned long begin_vaddr,
 		  unsigned long end_vaddr) {
 	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr;
-	int i,j,k,ret;
+	int i,j,k,ret,lockid;
 
 	struct task_struct *p;
 	pgd_t *pgd;
 	pmd_t *pmd;
-
+	pte_t *pte;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	
 	rcu_read_lock();
 	p = find_task_by_vpid(pid);
 	rcu_read_unlock();
 
-	read_lock(&tasklist_lock);
+	if (p == NULL)
+		return -EINVAL;
 
+	mm = current->mm;
+	//vma = find_vma(mm, temp_pte);
+	read_lock(&tasklist_lock);
+	spin_lock(&p->monitor_lock);
+	lockid = p->monitor_pid;
+	if (lockid != -1)
+		p->monitor_pid = current->pid;
+	spin_unlock(&p->monitor_lock);
 	read_unlock(&tasklist_lock);
+	if (lockid != -1)
+		return -1;
 
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 
@@ -46,6 +65,9 @@ int expose_page_table(pid_t pid,
 			if (ret != 0)
 				return -EFAULT;
 			temp_pmds += sizeof(unsigned long);
+			vma = find_vma(mm, temp_pte);
+			if (remap_pfn_range(vma, temp_pte, pte, PAGE_SIZE, vma->vm_page_prot))
+				return -EAGAIN;
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
