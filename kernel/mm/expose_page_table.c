@@ -12,19 +12,22 @@ int expose_page_table(pid_t pid,
 		  unsigned long page_table_addr,
 		  unsigned long begin_vaddr,
 		  unsigned long end_vaddr) {
-	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr;
-	int i,j,k,ret,lockid;
+	unsigned long temp_pgd = fake_pgd, temp_pmds = fake_pmds, temp_pte = page_table_addr, addr, phys, i, j, k;
+	int ret,lockid;
 
 	struct task_struct *p;
 	pgd_t *pgd;
 	pmd_t *pmd;
-	pte_t *pte;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	
-	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	rcu_read_unlock();
+	if (pid == -1)
+		p = current;
+	else {
+		rcu_read_lock();
+		p = find_task_by_vpid(pid);
+		rcu_read_unlock();
+	}
 
 	if (p == NULL)
 		return -EINVAL;
@@ -60,13 +63,13 @@ int expose_page_table(pid_t pid,
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
-
+			//phys = page_to_pfn(pmd_page(*pmd));
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
-			if (remap_pfn_range(vma, temp_pte, pte, PAGE_SIZE, vma->vm_page_prot))
+			if (remap_pfn_range(vma, temp_pte, pmd, PAGE_SIZE, vma->vm_page_prot))
 				return -EAGAIN;
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
