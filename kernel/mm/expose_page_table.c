@@ -11,8 +11,8 @@ int do_expose_page_table(pid_t pid,
 		unsigned long fake_pgd,
 		unsigned long fake_pmds,
 		unsigned long page_table_addr,
-		unsigned long begin_vaddr,
-		unsigned long end_vaddr) {
+		unsigned long va_begin,
+		unsigned long va_end) {
 	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0, count_pmd = 0, size_pgd = 1, size_pmd = 1;
 	int ret,lockid;
 
@@ -33,6 +33,16 @@ int do_expose_page_table(pid_t pid,
 		rcu_read_unlock();
 	}
 
+	size_pgd = PTRS_PER_PGD * sizeof(unsigned long);
+	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
+		   PTRS_PER_PMD * sizeof(unsigned long);
+	size_pte = pgd_index(va_end) == pge_index(va_begin) ?
+		   (pmd_index(va_end) - pmd_index(va_begin) + 1) *
+		   PTRS_PER_PTE * sizeof(unsigned long) :
+		   ((PTRS_PER_PMD - pmd_index(va_begin)) +
+		   (pgd_index(va_end) - pgd_index(va_begin) - 1) * 
+		   PTRS_PER_PMD + (pmd_index(va_end) + 1)) * 
+		   PTRS_PER_PTE * sizeof(unsigned long);
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
 	if (pgd_kernel == NULL)
 		return -ENOMEM;
