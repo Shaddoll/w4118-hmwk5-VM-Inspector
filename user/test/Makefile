@@ -6,7 +6,8 @@ SOURCES=test.c
 OBJECTS=$(SOURCES:%.c=%.o)
 
 BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-OBJDIR=../../build-$(BRANCH)/$(shell basename $(CURDIR))
+#OBJDIR=../../build-$(BRANCH)/$(shell basename $(CURDIR))
+OBJDIR=./
 SYSROOT=--sysroot=../sysroot
 
 CC=aarch64-linux-android-gcc
