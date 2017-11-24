@@ -42,11 +42,15 @@ int do_expose_page_table(pid_t pid,
 		return -ENOMEM;
 	printk("size_pgd: %d, size_pmd: %d\n", size_pgd, size_pmd);
 	pmd_kernel = kcalloc(size_pmd, sizeof(unsigned long), GFP_KERNEL);
-	if (pmd_kernel == NULL)
+	if (pmd_kernel == NULL) {
+		kfree(pgd_kernel);
 		return -ENOMEM;
-
-	if (p == NULL)
+	}
+	if (p == NULL) {
+		kfree(pmd_kernel);
+		kfree(pgd_kernel);
 		return -EINVAL;
+	}
 
 	mm = current->mm;
 	read_lock(&tasklist_lock);
@@ -56,8 +60,11 @@ int do_expose_page_table(pid_t pid,
 		p->monitor_pid = current->pid;
 	spin_unlock(&p->monitor_lock);
 	read_unlock(&tasklist_lock);
-	if (lockid != -1)
+	if (lockid != -1) {
+		kfree(pmd_kernel);
+		kfree(pgd_kernel);
 		return -1;
+	}
 
 	//lock page table, if p == current, should I grab this lock?
 	if (p != current)
@@ -96,6 +103,8 @@ int do_expose_page_table(pid_t pid,
 				up_write(&current->mm->mmap_sem);
 				if (p != current)
 					spin_unlock(&p->mm->page_table_lock);
+				kfree(pgd_kernel);
+				kfree(pmd_kernel);
 				return -EAGAIN;
 			}
 			up_write(&current->mm->mmap_sem);
@@ -107,11 +116,17 @@ int do_expose_page_table(pid_t pid,
 		spin_unlock(&p->mm->page_table_lock);
 	//unlock page table
 	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, count_pgd * sizeof(unsigned long));
-	if (ret != 0)
+	if (ret != 0) {
+		kfree(pgd_kernel);
+		kfree(pmd_kernel);
 		return -EFAULT;
+	}
 	ret = copy_to_user((void *)fake_pmds, (void *)pmd_kernel, count_pmd * sizeof(unsigned long));
-	if (ret != 0)
+	if (ret != 0) {
+		kfree(pgd_kernel);
+		kfree(pmd_kernel);
 		return -EFAULT;
+	}
 	return 0;
 }
 
