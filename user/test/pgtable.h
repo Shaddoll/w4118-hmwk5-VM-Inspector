@@ -5,6 +5,10 @@
 #define PGDIR_SHIFT		30
 #define PMD_SHIFT		21
 #define PAGE_SHIFT		12
+#define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
+#define PMD_SIZE		(1UL << PMD_SHIFT)
+#define PGDIR_MASK		(~(PGDIR_SIZE - 1))
+#define PMD_MASK		(~(PMD_SIZE - 1))
 #define PTRS_PER_PTE		512
 #define PTRS_PER_PMD		512
 #define PTRS_PER_PGD		512
