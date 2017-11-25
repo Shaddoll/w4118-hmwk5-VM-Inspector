@@ -71,7 +71,6 @@ int do_expose_page_table(pid_t pid,
 		p->monitor_base_pmd_addr = fake_pmds;
 	}
 	spin_unlock(&p->monitor_lock);
-	read_unlock(&tasklist_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
 		kfree(pgd_kernel);
@@ -84,10 +83,8 @@ int do_expose_page_table(pid_t pid,
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
-		if (*pgd == 0) {
-			//pgd_kernel[count_pgd++] = 0;
+		if (*pgd == 0)
 			continue;
-		}
 
 		pgd_kernel[i] = fake_pmds + count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
 		count_pgd++;
@@ -110,29 +107,34 @@ int do_expose_page_table(pid_t pid,
 				}
 			}
 			down_write(&current->mm->mmap_sem);
+			if (p != current)
+				down_write(&p->mm->mmap_sem);
 			if (remap_pfn_range(vma, temp_pte, page_to_pfn(pmd_page(*pmd)), PAGE_SIZE, vma->vm_page_prot)) {
+				if (p != current)
+					up_write(&p->mm->mmap_sem);
 				up_write(&current->mm->mmap_sem);
 				if (p != current)
 					spin_unlock(&p->mm->page_table_lock);
 				kfree(pgd_kernel);
 				kfree(pmd_kernel);
+				read_unlock(&tasklist_lock);
 				return -EAGAIN;
 			}
+			if (p != current)
+				up_write(&p->mm->mmap_sem);
 			up_write(&current->mm->mmap_sem);
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
-	read_lock(&tasklist_lock);
         spin_lock(&p->monitor_lock);
         p->monitor_number_of_pmd = count_pgd * PTRS_PER_PMD;
         p->monitor_next_pte_addr = temp_pte;
 	spin_unlock(&p->monitor_lock);
-        read_unlock(&tasklist_lock);
 
 	printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
-		spin_unlock(&p->mm->page_table_lock);
-	//unlock page table
+		spin_unlock(&p->mm->page_table_lock); //unlock page table
+	read_unlock(&tasklist_lock);
 	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, PTRS_PER_PGD * sizeof(unsigned long));
 	if (ret != 0) {
 		kfree(pgd_kernel);
