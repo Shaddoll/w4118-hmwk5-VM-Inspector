@@ -15,6 +15,9 @@ int do_expose_page_table(pid_t pid,
 		unsigned long va_end) {
 	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0, count_pmd = 0, size_pgd, size_pmd;
 	int ret,lockid;
+	
+	unsigned long page = va_begin & PAGE_MASK;
+	unsigned long
 
 	unsigned long *pgd_kernel;
 	unsigned long *pmd_kernel;
@@ -69,16 +72,22 @@ int do_expose_page_table(pid_t pid,
 	//lock page table, if p == current, should I grab this lock?
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
-	for (i = 0; i < PTRS_PER_PGD; i++) {
+		
+	while () {
+		
+	}
+	
+	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
 		if (*pgd == 0) {
-			pgd_kernel[count_pgd++] = 0;
+			//pgd_kernel[count_pgd++] = 0;
 			continue;
 		}
 
-		pgd_kernel[count_pgd++] = fake_pmds + count_pmd * sizeof(unsigned long);
-
+		//pgd_kernel[count_pgd++] = fake_pmds + count_pmd * sizeof(unsigned long);
+		pgd_kernel[i] = fake_pmds + count_pmd * sizeof(unsigned long);
+		
 		for (j = 0; j < PTRS_PER_PMD; j++) {
 			pmd = pmd_offset((pud_t *)pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
@@ -111,11 +120,10 @@ int do_expose_page_table(pid_t pid,
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
-	printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock);
 	//unlock page table
-	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, count_pgd * sizeof(unsigned long));
+	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, PTRS_PER_PGD * sizeof(unsigned long));
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);
