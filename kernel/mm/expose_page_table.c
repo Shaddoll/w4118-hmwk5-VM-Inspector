@@ -99,8 +99,8 @@ int do_expose_page_table(pid_t pid,
 			}
 
 			temp_pte = page_table_addr +
-				i * PTRS_PER_PGD * PTRS_PER_PMD +
-				j * PTRS_PER_PMD * sizeof(unsigned long);//
+				(i * PTRS_PER_PGD * PTRS_PER_PMD +
+				j * PTRS_PER_PMD) * sizeof(unsigned long);//
 			pmd_kernel[i * PTRS_PER_PMD + j] = temp_pte;
 			vma = find_vma(mm, temp_pte);
 			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
