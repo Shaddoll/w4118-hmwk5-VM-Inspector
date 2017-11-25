@@ -6,12 +6,14 @@
 #include <linux/kernel.h>
 #include <linux/cred.h>
 #include <asm-generic/errno-base.h>
-int get_pmd_start(unsigned long current_pgd, unsigned long base_pgd, unsigned long va_begin) {
+int get_pmd_start(unsigned long current_pgd, unsigned long base_pgd,
+	unsigned long va_begin) {
 	if (current_pgd != base_pgd)
 		return 0;
 	return pmd_index(va_begin);
 }
-int get_pmd_end(unsigned long current_pgd, unsigned long last_pgd, unsigned long va_end) {
+int get_pmd_end(unsigned long current_pgd, unsigned long last_pgd,
+	unsigned long va_end) {
 	if (current_pgd != last_pgd)
 		return PTRS_PER_PMD;
 	return pmd_index(va_end) + 1;
@@ -22,7 +24,8 @@ int do_expose_page_table(pid_t pid,
 		unsigned long page_table_addr,
 		unsigned long va_begin,
 		unsigned long va_end) {
-	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0, count_pmd = 0, size_pgd, size_pmd;
+	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0,
+			count_pmd = 0, size_pgd, size_pmd;
 	int ret,lockid;
 
 	unsigned long *pgd_kernel;
@@ -65,11 +68,8 @@ int do_expose_page_table(pid_t pid,
 	read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
-	if (lockid != -1) {
+	if (lockid != -1)
 		p->monitor_pid = current->pid;
-		p->monitor_base_pgd_addr = fake_pgd;
-		p->monitor_base_pmd_addr = fake_pmds;
-	}
 	spin_unlock(&p->monitor_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
@@ -86,16 +86,22 @@ int do_expose_page_table(pid_t pid,
 		if (*pgd == 0)
 			continue;
 
-		pgd_kernel[i] = fake_pmds + count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
+		pgd_kernel[i] = fake_pmds +
+			count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
 		count_pgd++;
-		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin); j < get_pmd_end(i, pgd_index(va_end), va_end); j++) {
-			pmd = pmd_offset((pud_t *)pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
+		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin);
+			j < get_pmd_end(i, pgd_index(va_end), va_end);
+			j++) {
+			pmd = pmd_offset((pud_t *)pgd,
+				(i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
 				continue;
 			}
 
-
-			pmd_kernel[(count_pgd - 1) * PTRS_PER_PMD + j] = temp_pte;
+			temp_pte = page_table_addr +
+				i * PTRS_PER_PGD * PTRS_PER_PMD +
+				j * PTRS_PER_PMD * sizeof(unsigned long);//
+			pmd_kernel[i * PTRS_PER_PMD + j] = temp_pte;
 			vma = find_vma(mm, temp_pte);
 			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
 			if (*pmd) {
@@ -109,7 +115,9 @@ int do_expose_page_table(pid_t pid,
 			down_write(&current->mm->mmap_sem);
 			if (p != current)
 				down_write(&p->mm->mmap_sem);
-			if (remap_pfn_range(vma, temp_pte, page_to_pfn(pmd_page(*pmd)), PAGE_SIZE, vma->vm_page_prot)) {
+			if (remap_pfn_range(vma, temp_pte,
+				page_to_pfn(pmd_page(*pmd)),
+				PAGE_SIZE, vma->vm_page_prot)) {
 				if (p != current)
 					up_write(&p->mm->mmap_sem);
 				up_write(&current->mm->mmap_sem);
@@ -123,19 +131,15 @@ int do_expose_page_table(pid_t pid,
 			if (p != current)
 				up_write(&p->mm->mmap_sem);
 			up_write(&current->mm->mmap_sem);
-			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
-        spin_lock(&p->monitor_lock);
-        p->monitor_number_of_pmd = count_pgd * PTRS_PER_PMD;
-        p->monitor_next_pte_addr = temp_pte;
-	spin_unlock(&p->monitor_lock);
 
 	printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock); //unlock page table
 	read_unlock(&tasklist_lock);
-	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, PTRS_PER_PGD * sizeof(unsigned long));
+	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel,
+		PTRS_PER_PGD * sizeof(unsigned long));
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);
