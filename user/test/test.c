@@ -15,7 +15,25 @@ void print_page_table(unsigned long fake_pgd,
 	unsigned long *pgd_ptr = (unsigned long *)fake_pgd;
 	unsigned long *pmd_ptr, *pte_ptr;
 	unsigned long pgd_entry, pmd_entry, pte_entry;
-
+	int i, j, k;
+	
+	for (i = 0; i < 512; ++i) {
+		if (pgd_ptr[i]) {
+			printf("pgd[%d]: %#x\n", i, pgd_ptr[i]);
+			pmd_ptr = (unsigned long *)pgd_ptr[i];
+			for (j = 0; j < 512; ++j) {
+				if (pmd_ptr[j]) {
+					printf("pmd[%d]: %#x\n", j, pmd_ptr[j]);
+					pte_ptr = (unsigned long *)pmd_ptr[j];
+					for (k = 0; k < 512; ++k) {
+						if (pte_ptr[k])
+							printf("pte[%d]: %#x\n", k, pte_ptr[k]);
+					}
+				}
+			}
+		}
+	}
+	return;
 	for (; page < end_page; page += PAGE_SIZE) {
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
@@ -34,10 +52,12 @@ void print_page_table(unsigned long fake_pgd,
 		}
 		pte_ptr = (unsigned long *)pmd_entry;
 		pte_entry = pte_ptr[pte_index(page)];
-		printf("0x%lx 0x%lx %d %d %d %d %d\n", page,
-			get_phys_addr(pte_entry), young_bit(pte_entry),
-			file_bit(pte_entry), dirty_bit(pte_entry),
-			readonly_bit(pte_entry), uxn_bit(pte_entry));
+		//printf("%lu\n", pgd_index(page));
+		if (pte_entry)
+			printf("1.0x%lx 0x%lx %d %d %d %d %d\n", page,
+				get_phys_addr(pte_entry), young_bit(pte_entry),
+				file_bit(pte_entry), dirty_bit(pte_entry),
+				readonly_bit(pte_entry), uxn_bit(pte_entry));
 	}
 }
 
