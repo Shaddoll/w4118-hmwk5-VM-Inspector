@@ -115,12 +115,14 @@ parse_error:
 	pgd_size = PTRS_PER_PGD * sizeof(unsigned long);
 	pmd_size = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
 		   PTRS_PER_PMD * sizeof(unsigned long);
+	pmd_size = PTRS_PER_PGD * PTRS_PER_PMD * sizeof(unsigned long);
 	pte_size = pgd_index(va_end) == pgd_index(va_begin) ?
 		   (pmd_index(va_end) - pmd_index(va_begin) + 1) *
 		   PTRS_PER_PTE * sizeof(unsigned long) :
 		   ((PTRS_PER_PMD - pmd_index(va_begin)) +
 		   (pgd_index(va_end) - pgd_index(va_begin)) * PTRS_PER_PMD +
 		   (pmd_index(va_end) + 1)) * PTRS_PER_PTE * sizeof(unsigned long);
+	pte_size = PTRS_PER_PTE * PTRS_PER_PMD * PTRS_PER_PGD * sizeof(unsigned long);
 
 	fake_pgd = (unsigned long) mmap(NULL, pgd_size, PROT_WRITE | PROT_READ,
 					MAP_ANONYMOUS | MAP_SHARED, -1, 0);
