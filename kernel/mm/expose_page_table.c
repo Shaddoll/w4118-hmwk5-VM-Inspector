@@ -33,14 +33,14 @@ int do_expose_page_table(pid_t pid,
 		rcu_read_unlock();
 	}
 
-	size_pgd = PTRS_PER_PGD * sizeof(unsigned long);
+	size_pgd = PTRS_PER_PGD;
 	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
-		   PTRS_PER_PMD * sizeof(unsigned long);
+		   PTRS_PER_PMD;
 
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
 	if (pgd_kernel == NULL)
 		return -ENOMEM;
-	
+	printk("size_pgd: %d, size_pmd: %d\n", size_pgd, size_pmd);
 	pmd_kernel = kcalloc(size_pmd, sizeof(unsigned long), GFP_KERNEL);
 	if (pmd_kernel == NULL)
 		return -ENOMEM;
@@ -60,10 +60,11 @@ int do_expose_page_table(pid_t pid,
 		return -1;
 
 	//lock page table, if p == current, should I grab this lock?
-	spin_lock(&p->mm->page_table_lock);
+	if (p != current)
+		spin_lock(&p->mm->page_table_lock);
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 
-		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);//
+		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
 		if (*pgd == 0) {
 			pgd_kernel[count_pgd++] = 0;
 			continue;
@@ -81,31 +82,34 @@ int do_expose_page_table(pid_t pid,
 
 			pmd_kernel[count_pmd++] = temp_pte;
 			vma = find_vma(mm, temp_pte);
-			//printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
-			/*if (*pmd) {
+			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
+			if (*pmd) {
 				int k;
 				unsigned long *ptr = (unsigned long*)pmd_page_vaddr(*pmd);
 				for (k = 0; k < 512; ++k) {
 					if (ptr[k])
 						printk("pte[%d]: %#x\n", k, ptr[k]);
 				}
-			}*/
+			}
 			down_write(&current->mm->mmap_sem);
 			if (remap_pfn_range(vma, temp_pte, page_to_pfn(pmd_page(*pmd)), PAGE_SIZE, vma->vm_page_prot)) {
 				up_write(&current->mm->mmap_sem);
-				spin_unlock(&p->mm->page_table_lock);
+				if (p != current)
+					spin_unlock(&p->mm->page_table_lock);
 				return -EAGAIN;
 			}
 			up_write(&current->mm->mmap_sem);
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
-	spin_unlock(&p->mm->page_table_lock);
+	printk("%d, %d\n", count_pgd, count_pmd);
+	if (p != current)
+		spin_unlock(&p->mm->page_table_lock);
 	//unlock page table
-	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, count_pgd);
+	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, count_pgd * sizeof(unsigned long));
 	if (ret != 0)
 		return -EFAULT;
-	ret = copy_to_user((void *)fake_pmds, (void *)pmd_kernel, count_pmd);
+	ret = copy_to_user((void *)fake_pmds, (void *)pmd_kernel, count_pmd * sizeof(unsigned long));
 	if (ret != 0)
 		return -EFAULT;
 	return 0;
