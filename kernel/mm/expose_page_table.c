@@ -65,8 +65,11 @@ int do_expose_page_table(pid_t pid,
 	read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
-	if (lockid != -1)
+	if (lockid != -1) {
 		p->monitor_pid = current->pid;
+		p->monitor_base_pgd_addr = fake_pgd;
+		p->monitor_base_pmd_addr = fake_pmds;
+	}
 	spin_unlock(&p->monitor_lock);
 	read_unlock(&tasklist_lock);
 	if (lockid != -1) {
@@ -119,6 +122,13 @@ int do_expose_page_table(pid_t pid,
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
+	read_lock(&tasklist_lock);
+        spin_lock(&p->monitor_lock);
+        p->monitor_number_of_pmd = count_pgd * PTRS_PER_PMD;
+        p->monitor_next_pte_addr = temp_pte;
+	spin_unlock(&p->monitor_lock);
+        read_unlock(&tasklist_lock);
+
 	printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock);
@@ -131,7 +141,7 @@ int do_expose_page_table(pid_t pid,
 	}
 	ret = copy_to_user((void *)fake_pmds,
 		(void *)pmd_kernel,
-		(count_pgd) * PTRS_PER_PMD * sizeof(unsigned long));
+		count_pgd * PTRS_PER_PMD * sizeof(unsigned long));
 	printk("copy to user %ld %ld\n", PTRS_PER_PGD, (count_pgd) * PTRS_PER_PMD);
 	if (ret != 0) {
 		kfree(pgd_kernel);
