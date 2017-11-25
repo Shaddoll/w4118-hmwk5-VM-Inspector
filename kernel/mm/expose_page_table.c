@@ -6,7 +6,16 @@
 #include <linux/kernel.h>
 #include <linux/cred.h>
 #include <asm-generic/errno-base.h>
-
+int get_pmd_start(unsigned long current_pgd, unsigned long base_pgd, unsigned long va_begin) {
+	if (current_pgd != base_pgd)
+		return 0;
+	return pmd_index(va_begin);
+}
+int get_pmd_end(unsigned long current_pgd, unsigned long last_pgd, unsigned long va_end) {
+	if (current_pgd != last_pgd)
+		return PTRS_PER_PMD;
+	return pmd_index(va_end) + 1;
+}
 int do_expose_page_table(pid_t pid,
 		unsigned long fake_pgd,
 		unsigned long fake_pmds,
@@ -69,7 +78,7 @@ int do_expose_page_table(pid_t pid,
 	//lock page table, if p == current, should I grab this lock?
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
-	for (i = 0; i < PTRS_PER_PGD; i++) {
+	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
 		if (*pgd == 0) {
@@ -79,15 +88,14 @@ int do_expose_page_table(pid_t pid,
 
 		pgd_kernel[count_pgd++] = fake_pmds + count_pmd * sizeof(unsigned long);
 
-		for (j = 0; j < PTRS_PER_PMD; j++) {
+		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin); j < get_pmd_end(i, pgd_index(va_end), va_end); j++) {
 			pmd = pmd_offset((pud_t *)pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
-				pmd_kernel[count_pmd++] = 0;
 				continue;
 			}
 
 
-			pmd_kernel[count_pmd++] = temp_pte;
+			pmd_kernel[(i - pgd_index(va_begin)) * PTRS_PER_PGD + j] = temp_pte;
 			vma = find_vma(mm, temp_pte);
 			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
 			if (*pmd) {
@@ -115,13 +123,15 @@ int do_expose_page_table(pid_t pid,
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock);
 	//unlock page table
-	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, count_pgd * sizeof(unsigned long));
+	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel, PTRS_PER_PGD * sizeof(unsigned long));
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);
 		return -EFAULT;
 	}
-	ret = copy_to_user((void *)fake_pmds, (void *)pmd_kernel, count_pmd * sizeof(unsigned long));
+	ret = copy_to_user((void *)fake_pmds,
+		(void *)pmd_kernel,
+		(pgd_index(va_end) - pgd_index(va_begin) + 1) * PTRS_PER_PMD * sizeof(unsigned long));
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);
