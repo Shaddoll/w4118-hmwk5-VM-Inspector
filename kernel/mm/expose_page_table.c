@@ -86,7 +86,7 @@ int do_expose_page_table(pid_t pid,
 			continue;
 		}
 
-		pgd_kernel[count_pgd++] = fake_pmds + count_pmd * sizeof(unsigned long);
+		pgd_kernel[i] = fake_pmds + count_pmd * sizeof(unsigned long);
 
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin); j < get_pmd_end(i, pgd_index(va_end), va_end); j++) {
 			pmd = pmd_offset((pud_t *)pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
