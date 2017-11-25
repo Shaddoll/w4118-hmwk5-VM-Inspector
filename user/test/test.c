@@ -16,8 +16,8 @@ void print_page_table(unsigned long fake_pgd,
 	unsigned long *pmd_ptr, *pte_ptr;
 	unsigned long pgd_entry, pmd_entry, pte_entry;
 	int i, j, k;
-	
-	/*for (i = 0; i < 512; ++i) {
+	printf("ajf");	
+	for (i = 0; i < 512; ++i) {
 		if (pgd_ptr[i]) {
 			printf("pgd[%d]: %#x\n", i, pgd_ptr[i]);
 			pmd_ptr = (unsigned long *)pgd_ptr[i];
@@ -33,8 +33,8 @@ void print_page_table(unsigned long fake_pgd,
 			}
 		}
 	}
-	return;*/
-
+	return;
+	/*
 	while (page < end_page) {
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
@@ -61,7 +61,7 @@ void print_page_table(unsigned long fake_pgd,
 				file_bit(pte_entry), dirty_bit(pte_entry),
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
 		page += PAGE_SIZE;
-	}
+	}*/
 }
 
 int main(int argc, char* argv[])

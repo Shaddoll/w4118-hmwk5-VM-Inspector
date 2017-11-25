@@ -82,12 +82,12 @@ int do_expose_page_table(pid_t pid,
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
 		if (*pgd == 0) {
-			pgd_kernel[count_pgd++] = 0;
+			//pgd_kernel[count_pgd++] = 0;
 			continue;
 		}
 
-		pgd_kernel[i] = fake_pmds + count_pmd * sizeof(unsigned long);
-
+		pgd_kernel[i] = fake_pmds + count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
+		count_pgd++;
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin); j < get_pmd_end(i, pgd_index(va_end), va_end); j++) {
 			pmd = pmd_offset((pud_t *)pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
@@ -95,7 +95,7 @@ int do_expose_page_table(pid_t pid,
 			}
 
 
-			pmd_kernel[(i - pgd_index(va_begin)) * PTRS_PER_PGD + j] = temp_pte;
+			pmd_kernel[(count_pgd - 1) * PTRS_PER_PMD + j] = temp_pte;
 			vma = find_vma(mm, temp_pte);
 			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
 			if (*pmd) {
@@ -131,7 +131,8 @@ int do_expose_page_table(pid_t pid,
 	}
 	ret = copy_to_user((void *)fake_pmds,
 		(void *)pmd_kernel,
-		(pgd_index(va_end) - pgd_index(va_begin) + 1) * PTRS_PER_PMD * sizeof(unsigned long));
+		(count_pgd) * PTRS_PER_PMD * sizeof(unsigned long));
+	printk("copy to user %ld %ld\n", PTRS_PER_PGD, (count_pgd) * PTRS_PER_PMD);
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);
