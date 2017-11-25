@@ -21,6 +21,7 @@ int do_expose_page_table(pid_t pid,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	
+
 	if (pid == -1)
 		p = current;
 	else {
@@ -46,7 +47,8 @@ int do_expose_page_table(pid_t pid,
 	for (i = 0; i < PTRS_PER_PGD; i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);//
-		if (pgd_none(*pgd) || pgd_bad(*pgd)) {
+
+		if (*pgd == 0) {
 			temp_pgd += sizeof(unsigned long);
 			continue;
 		}
@@ -58,17 +60,29 @@ int do_expose_page_table(pid_t pid,
 
 		for (j = 0; j < PTRS_PER_PMD; j++) {
 			pmd = pmd_offset(pgd, (i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
-			if (pmd_none(*pmd) || pmd_bad(*pmd)) {
+			if (*pmd == 0) {
 				temp_pmds += sizeof(unsigned long);
 				continue;
 			}
+
 			ret = copy_to_user(temp_pmds, &temp_pte, sizeof(unsigned long));
 			if (ret != 0)
 				return -EFAULT;
 			temp_pmds += sizeof(unsigned long);
 			vma = find_vma(mm, temp_pte);
-			if (remap_pfn_range(vma, temp_pte, pmd, PAGE_SIZE, vma->vm_page_prot))
+			//printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
+			/*if (*pmd) {
+				int k;
+				unsigned long *ptr = (unsigned long*)pmd_page_vaddr(*pmd);
+				for (k = 0; k < 512; ++k) {
+					if (ptr[k])
+						printk("pte[%d]: %#x\n", k, ptr[k]);
+				}
+			}*/
+			down_write(&current->mm->mmap_sem);
+			if (remap_pfn_range(vma, temp_pte, page_to_pfn(pmd_page(*pmd)), PAGE_SIZE, vma->vm_page_prot))
 				return -EAGAIN;
+			up_write(&current->mm->mmap_sem);
 			temp_pte += (PTRS_PER_PTE * sizeof(unsigned long));
 		}
 	}
