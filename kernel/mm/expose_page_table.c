@@ -99,7 +99,9 @@ int do_expose_page_table(pid_t pid,
 				pmd = NULL;
 			temp_pte = page_table_addr +
 				(i * PTRS_PER_PGD * PTRS_PER_PMD +
-				j * PTRS_PER_PMD - (va_begin >> PAGE_SHIFT)) * sizeof(unsigned long);//
+				j * PTRS_PER_PMD - ((va_begin & PMD_MASK) >> PAGE_SHIFT)) * sizeof(unsigned long);//
+			if (i == pgd_index(va_begin) && j == get_pmd_start(i, pgd_index(va_begin), va_begin))
+				printk("%x, %x\n", page_table_addr, temp_pte);
 			pmd_kernel[(i - pgd_index(va_begin)) * PTRS_PER_PMD + j] = temp_pte;
 			vma = find_vma(mm, temp_pte);
 			if (!pmd || !(*pmd)) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {

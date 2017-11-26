@@ -29,6 +29,10 @@ void print_page_table(unsigned long fake_pgd,
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
 		page += PAGE_SIZE;
 	}*/
+	//pgd_entry = pgd_ptr[pgd_index(page)];
+	//pmd_ptr = (unsigned long *)pgd_entry;
+	//pmd_entry = pmd_ptr[pmd_index(page)];
+	//printf("%lx\n", pmd_entry);
 	while (page < end_page) {
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
@@ -127,6 +131,7 @@ parse_error:
 		fprintf(stderr, "error: %s", strerror(errno));
 		return 1;
 	}
+	//printf("%lx\n", page_table_addr);
 	print_page_table(fake_pgd,
 			 va_begin,
 			 va_end,
