@@ -5,7 +5,7 @@
 #include <sys/mman.h>
 #include "pgtable.h"
 
-void print_page_table(unsigned long fake_pte,
+void print_page_table(unsigned long fake_pgd,
 		      unsigned long va_begin,
 		      unsigned long va_end,
 		      int verbose)
@@ -13,23 +13,23 @@ void print_page_table(unsigned long fake_pte,
 	const unsigned long top_addr = 0x8000000000;
 	unsigned long page = va_begin & PAGE_MASK;
 	unsigned long end_page = (va_end + PAGE_SIZE - 1) & PAGE_MASK;
-	//unsigned long *pgd_ptr = (unsigned long *)fake_pgd;
-	//unsigned long *pmd_ptr, *pte_ptr;
-	//unsigned long pgd_entry, pmd_entry, pte_entry;
-	unsigned long *pte_ptr = (unsigned long *)fake_pte;
-	unsigned long pte_entry;
+	unsigned long *pgd_ptr = (unsigned long *)fake_pgd;
+	unsigned long *pmd_ptr, *pte_ptr;
+	unsigned long pgd_entry, pmd_entry, pte_entry;
+	//unsigned long *pte_ptr = (unsigned long *)fake_pte;
+	//unsigned long pte_entry;
 
 	end_page = end_page < top_addr ? end_page : top_addr;
-	while (page < end_page) {
-		pte_entry = pte_ptr[page >> PAGE_SHIFT];
+	/*while (page < end_page) {
+		pte_entry = pte_ptr[(page >> PAGE_SHIFT) - (va_begin >> PAGE_SHIFT)];
 		if (pte_entry || verbose)
 			printf("0x%lx 0x%lx %d %d %d %d %d\n", page,
 				get_phys_addr(pte_entry), young_bit(pte_entry),
 				file_bit(pte_entry), dirty_bit(pte_entry),
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
 		page += PAGE_SIZE;
-	}
-	/*while (page < end_page) {
+	}*/
+	while (page < end_page) {
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
 			if (verbose)
@@ -54,10 +54,8 @@ void print_page_table(unsigned long fake_pte,
 				get_phys_addr(pte_entry), young_bit(pte_entry),
 				file_bit(pte_entry), dirty_bit(pte_entry),
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
-		//if (pte_entry)
-		//	printf("pgd_index: %d, pmd_index: %d, pte_index: %d\n", pgd_index(page), pmd_index(page), pte_index(page));
 		page += PAGE_SIZE;
-	}*/
+	}
 }
 
 int main(int argc, char* argv[])
@@ -129,7 +127,7 @@ parse_error:
 		fprintf(stderr, "error: %s", strerror(errno));
 		return 1;
 	}
-	print_page_table(page_table_addr,
+	print_page_table(fake_pgd,
 			 va_begin,
 			 va_end,
 			 verbose);
