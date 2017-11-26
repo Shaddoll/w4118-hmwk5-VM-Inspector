@@ -76,6 +76,7 @@ int do_expose_page_table(pid_t pid,
 	if (lockid != -1) {
 		kfree(pmd_kernel);
 		kfree(pgd_kernel);
+		read_unlock(&tasklist_lock);
 		return -1;
 	}
 
