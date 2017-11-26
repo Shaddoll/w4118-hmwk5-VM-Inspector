@@ -90,8 +90,12 @@ int do_expose_page_table(pid_t pid,
 		pgd_kernel[i] = fake_pmds +
 			count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
 		count_pgd++;
-		if (*pgd == 0)
+		if (*pgd == 0) {
+			count_pmd += 
+				get_pmd_end(i, pgd_index(va_end), va_end) -
+				get_pmd_start(i, pgd_index(va_begin), va_begin);
 			continue;
+		}
 
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin);
 			j < get_pmd_end(i, pgd_index(va_end), va_end);
@@ -100,10 +104,9 @@ int do_expose_page_table(pid_t pid,
 				(i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
 
 			temp_pte = page_table_addr +
-					(i - pgd_index(va_begin)) * PTRS_PER_PMD 
-					* PTRS_PER_PTE *
-					sizeof(unsigned long);
-			pmd_kernel[(count_pgd - 1) * PTRS_PER_PMD + j] = temp_pte;
+				   count_pmd * PTRS_PER_PTE *
+				   sizeof(unsigned long);
+			pmd_kernel[count_pgd * PTRS_PER_PMD + j] = temp_pte;
 			count_pmd++;
 
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
