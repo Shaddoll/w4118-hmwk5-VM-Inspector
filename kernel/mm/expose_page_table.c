@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/cred.h>
 #include <asm-generic/errno-base.h>
+
 int get_pmd_start(unsigned long current_pgd, unsigned long base_pgd,
 	unsigned long va_begin) {
 	if (current_pgd != base_pgd)
@@ -24,8 +25,9 @@ int do_expose_page_table(pid_t pid,
 		unsigned long page_table_addr,
 		unsigned long va_begin,
 		unsigned long va_end) {
-	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0,
-			count_pmd = 0, size_pgd, size_pmd;
+	unsigned long temp_pte = page_table_addr;
+	unsigned long count_pgd = 0, count_pmd = 0;
+	unsigned size_pgd, size_pmd, i, j;
 	int ret,lockid;
 
 	unsigned long *pgd_kernel;
@@ -52,7 +54,6 @@ int do_expose_page_table(pid_t pid,
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
 	if (pgd_kernel == NULL)
 		return -ENOMEM;
-	printk("size_pgd: %d, size_pmd: %d\n", size_pgd, size_pmd);
 	pmd_kernel = kcalloc(size_pmd, sizeof(unsigned long), GFP_KERNEL);
 	if (pmd_kernel == NULL) {
 		kfree(pgd_kernel);
@@ -83,25 +84,37 @@ int do_expose_page_table(pid_t pid,
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
-		if (*pgd == 0)
-			continue;
-
 		pgd_kernel[i] = fake_pmds +
 			count_pgd * PTRS_PER_PMD * sizeof(unsigned long);
 		count_pgd++;
+		if (*pgd == 0) {
+			count_pmd += 
+				get_pmd_end(i, pgd_index(va_end), va_end) -
+				get_pmd_start(i, pgd_index(va_begin), va_begin);
+			continue;
+		}
+
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin);
 			j < get_pmd_end(i, pgd_index(va_end), va_end);
 			j++) {
 			pmd = pmd_offset((pud_t *)pgd,
 				(i<<PGDIR_SHIFT) + (j<<PMD_SHIFT));//
+
+			temp_pte = page_table_addr +
+				   count_pmd * PTRS_PER_PTE *
+				   sizeof(unsigned long);
+			pmd_kernel[count_pgd * PTRS_PER_PMD + j] = temp_pte;
+			count_pmd++;
+
 			if (*pmd == 0) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
 				continue;
 			}
 
-			temp_pte = page_table_addr +
-				(i * PTRS_PER_PGD * PTRS_PER_PMD +
-				j * PTRS_PER_PMD) * sizeof(unsigned long);//
-			pmd_kernel[i * PTRS_PER_PMD + j] = temp_pte;
+			//temp_pte = page_table_addr +
+			//	(i * PTRS_PER_PGD * PTRS_PER_PMD +
+			//	j * PTRS_PER_PMD) * sizeof(unsigned long);//
+			//pmd_kernel[i * PTRS_PER_PMD + j] = temp_pte;
+
 			vma = find_vma(mm, temp_pte);
 			printk("i: %d, j: %d, pmd: %#x, temp_pte: %#x, *pmd: %#x\n", i, j, pmd, temp_pte, *pmd);
 			if (*pmd) {
@@ -160,11 +173,18 @@ int do_expose_page_table(pid_t pid,
 
 
 
-SYSCALL_DEFINE6(expose_page_table, pid_t, pid,
+SYSCALL_DEFINE6(expose_page_table,
+		pid_t, pid,
 		unsigned long, fake_pgd,
 		unsigned long, fake_pmds,
 		unsigned long, page_table_addr,
 		unsigned long, begin_vaddr,
-		unsigned long, end_vaddr) {
-	return do_expose_page_table(pid, fake_pgd, fake_pmds, page_table_addr, begin_vaddr, end_vaddr);
+		unsigned long, end_vaddr)
+{
+	return do_expose_page_table(pid,
+				    fake_pgd,
+				    fake_pmds,
+				    page_table_addr,
+				    begin_vaddr,
+				    end_vaddr);
 }
