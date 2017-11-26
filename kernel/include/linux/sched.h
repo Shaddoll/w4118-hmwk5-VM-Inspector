@@ -1034,6 +1034,7 @@ enum perf_event_task_context {
 
 struct task_struct {
 	int monitor_pid;
+	int monitoring_pid;
 	unsigned long monitor_va_begin;
 	unsigned long monitor_va_end;
 	unsigned long monitor_va_page_table;
