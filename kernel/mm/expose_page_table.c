@@ -69,8 +69,11 @@ int do_expose_page_table(pid_t pid,
 	read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
-	if (lockid != -1)
+	if (lockid == -1)
 		p->monitor_pid = current->pid;
+	p->monitor_va_begin = va_begin & PAGE_MASK;
+	p->monitor_va_end = va_end & PAGE_MASK;
+	p->monitor_va_page_table = page_table_addr;
 	spin_unlock(&p->monitor_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
@@ -147,7 +150,6 @@ int do_expose_page_table(pid_t pid,
 		}
 	}
 
-	printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock); //unlock page table
 	read_unlock(&tasklist_lock);
@@ -161,7 +163,6 @@ int do_expose_page_table(pid_t pid,
 	ret = copy_to_user((void *)fake_pmds,
 		(void *)pmd_kernel,
 		count_pgd * PTRS_PER_PMD * sizeof(unsigned long));
-	printk("copy to user %ld %ld\n", PTRS_PER_PGD, (count_pgd) * PTRS_PER_PMD);
 	if (ret != 0) {
 		kfree(pgd_kernel);
 		kfree(pmd_kernel);

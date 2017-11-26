@@ -3754,6 +3754,8 @@ unlock:
 int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
 {
+	struct vm_area_struct *monitor_vma;
+	unsigned long page_table_addr;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -3844,6 +3846,36 @@ retry:
 	 */
 	pte = pte_offset_map(pmd, address);
 
+	/*
+	 * If current process is monitored, and this address is within
+	 * the monitor address range, and this pte table is allocated
+	 * just now, then remap the pte table to the monitor process's
+	 * fake_pte table.
+	 */
+	rcu_read_lock();
+	p = find_task_by_vpid(current->monitor_pid);
+	if (p)
+		get_task_struct(p);
+	rcu_read_unlock();
+	if (!p)
+		goto skip_remap;
+	if (address < current->monitor_va_begin ||
+	    address > current->monitor_va_end)
+		goto skip_remap;
+	page_table_addr = current->monitor_va_page_table +
+			  ((address >> PAGE_SHIFT) -
+			   (current->monitor_va_begin >> PAGE_SHIFT)) *
+			  sizeof(unsigned long);
+	monitor_vma = find_vma(p->mm, page_table_addr);
+	if (p != current)
+		down_write(&p->mm->mmap_sem);
+	remap_pfn_range(monitor_vma, page_table_addr,
+			page_to_pfn(pmd_page(*pmd)),
+			PAGE_SIZE, monitor_vma->vm_page_prot);
+	if (p != current)
+		up_write(&p->mm->mmap_sem);
+	put_task_struct(p);
+skip_remap:
 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
 }
 
