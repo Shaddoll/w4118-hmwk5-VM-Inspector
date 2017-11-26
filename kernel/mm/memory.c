@@ -3870,9 +3870,9 @@ retry:
 	monitor_vma = find_vma(p->mm, page_table_addr);
 	if (p != current)
 		down_write(&p->mm->mmap_sem);
-	remap_pfn_range(monitor_vma, page_table_addr,
-			page_to_pfn(pmd_page(*pmd)),
-			PAGE_SIZE, monitor_vma->vm_page_prot);
+	//remap_pfn_range(monitor_vma, page_table_addr,
+	//		page_to_pfn(pmd_page(*pmd)),
+	//		PAGE_SIZE, monitor_vma->vm_page_prot);
 	if (p != current)
 		up_write(&p->mm->mmap_sem);
 	put_task_struct(p);
