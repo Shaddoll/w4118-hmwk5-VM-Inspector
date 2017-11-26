@@ -3755,6 +3755,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
 {
 	struct vm_area_struct *monitor_vma;
+	struct task_struct *p;
 	unsigned long page_table_addr;
 	pgd_t *pgd;
 	pud_t *pud;
