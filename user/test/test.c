@@ -5,7 +5,7 @@
 #include <sys/mman.h>
 #include "pgtable.h"
 
-void print_page_table(unsigned long fake_pgd,
+void print_page_table(unsigned long fake_pte,
 		      unsigned long va_begin,
 		      unsigned long va_end,
 		      int verbose)
@@ -13,14 +13,14 @@ void print_page_table(unsigned long fake_pgd,
 	const unsigned long top_addr = 0x8000000000;
 	unsigned long page = va_begin & PAGE_MASK;
 	unsigned long end_page = (va_end + PAGE_SIZE - 1) & PAGE_MASK;
-	unsigned long *pgd_ptr = (unsigned long *)fake_pgd;
-	unsigned long *pmd_ptr, *pte_ptr;
-	unsigned long pgd_entry, pmd_entry, pte_entry;
-	//unsigned long *pte_ptr = (unsigned long *)fake_pte;
-	//unsigned long pte_entry;
+	//unsigned long *pgd_ptr = (unsigned long *)fake_pgd;
+	//unsigned long *pmd_ptr, *pte_ptr;
+	//unsigned long pgd_entry, pmd_entry, pte_entry;
+	unsigned long *pte_ptr = (unsigned long *)fake_pte;
+	unsigned long pte_entry;
 
 	end_page = end_page < top_addr ? end_page : top_addr;
-	/*while (page < end_page) {
+	while (page < end_page) {
 		pte_entry = pte_ptr[page >> PAGE_SHIFT];
 		if (pte_entry || verbose)
 			printf("0x%lx 0x%lx %d %d %d %d %d\n", page,
@@ -28,8 +28,8 @@ void print_page_table(unsigned long fake_pgd,
 				file_bit(pte_entry), dirty_bit(pte_entry),
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
 		page += PAGE_SIZE;
-	}*/
-	while (page < end_page) {
+	}
+	/*while (page < end_page) {
 		pgd_entry = pgd_ptr[pgd_index(page)];
 		if (pgd_entry == 0) {
 			if (verbose)
@@ -54,8 +54,10 @@ void print_page_table(unsigned long fake_pgd,
 				get_phys_addr(pte_entry), young_bit(pte_entry),
 				file_bit(pte_entry), dirty_bit(pte_entry),
 				readonly_bit(pte_entry), uxn_bit(pte_entry));
+		//if (pte_entry)
+		//	printf("pgd_index: %d, pmd_index: %d, pte_index: %d\n", pgd_index(page), pmd_index(page), pte_index(page));
 		page += PAGE_SIZE;
-	}
+	}*/
 }
 
 int main(int argc, char* argv[])
@@ -103,15 +105,16 @@ parse_error:
 	pgd_size = PTRS_PER_PGD * sizeof(unsigned long);
 	pmd_size = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
 		   PTRS_PER_PMD * sizeof(unsigned long);
-	//pmd_size = PTRS_PER_PGD * PTRS_PER_PMD * sizeof(unsigned long);
+	pmd_size = PTRS_PER_PGD * PTRS_PER_PMD * sizeof(unsigned long);
 	pte_size = pgd_index(va_end) == pgd_index(va_begin) ?
 		   (pmd_index(va_end) - pmd_index(va_begin) + 1) *
 		   PTRS_PER_PTE * sizeof(unsigned long) :
 		   ((PTRS_PER_PMD - pmd_index(va_begin)) +
-		   (pgd_index(va_end) - pgd_index(va_begin) - 1) * 
-		   PTRS_PER_PMD + (pmd_index(va_end) + 1)) *
-		   PTRS_PER_PTE * sizeof(unsigned long);
-	//pte_size = PTRS_PER_PTE * PTRS_PER_PMD * PTRS_PER_PGD * sizeof(unsigned long);
+		   (pgd_index(va_end) - pgd_index(va_begin)) * PTRS_PER_PMD +
+		   (pmd_index(va_end) + 1)) * PTRS_PER_PTE * sizeof(unsigned long);
+	pte_size = ((va_end >> PAGE_SHIFT) - (va_begin >> PAGE_SHIFT) + 1) *
+		   PTRS_PER_PTE * sizeof (unsigned long);
+	pte_size = PTRS_PER_PTE * PTRS_PER_PMD * PTRS_PER_PGD * sizeof(unsigned long);
 
 	fake_pgd = (unsigned long) mmap(NULL, pgd_size, PROT_WRITE | PROT_READ,
 					MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -126,7 +129,7 @@ parse_error:
 		fprintf(stderr, "error: %s", strerror(errno));
 		return 1;
 	}
-	print_page_table(fake_pgd,
+	print_page_table(page_table_addr,
 			 va_begin,
 			 va_end,
 			 verbose);
@@ -139,4 +142,3 @@ parse_error:
 	}
 	return 0;
 }
-
