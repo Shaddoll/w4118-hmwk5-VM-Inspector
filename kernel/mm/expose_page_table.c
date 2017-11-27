@@ -29,7 +29,7 @@ int do_expose_page_table(pid_t pid,
 		unsigned long va_end) {
 	unsigned long temp_pte = page_table_addr;
 	unsigned long i, j, size_pgd, size_pmd;
-	int ret,lockid;
+	int ret, lockid;
 
 	unsigned long *pgd_kernel;
 	unsigned long *pmd_kernel;
@@ -54,7 +54,6 @@ int do_expose_page_table(pid_t pid,
 	size_pgd = PTRS_PER_PGD;
 	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
 		   PTRS_PER_PMD;
-	//size_pmd = PTRS_PER_PGD * PTRS_PER_PMD;
 
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
 	if (pgd_kernel == NULL) {
@@ -94,11 +93,8 @@ int do_expose_page_table(pid_t pid,
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
 		pgd_kernel[i] = fake_pmds +
-				(i - pgd_index(va_begin)) * 
+				(i - pgd_index(va_begin)) *
 				PTRS_PER_PMD * sizeof(unsigned long);
-		//pgd_kernel[i] = fake_pmds +
-		//		(i) * 
-		//		PTRS_PER_PMD * sizeof(unsigned long);
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin);
 			j < get_pmd_end(i, pgd_index(va_end), va_end);
 			j++) {
@@ -109,20 +105,17 @@ int do_expose_page_table(pid_t pid,
 				pmd = NULL;
 			temp_pte = page_table_addr +
 				(i * PTRS_PER_PGD * PTRS_PER_PMD +
-				j * PTRS_PER_PMD - ((va_begin & PMD_MASK) >> PAGE_SHIFT)) * sizeof(unsigned long);
-			pmd_kernel[(i - pgd_index(va_begin)) * PTRS_PER_PMD + j] = temp_pte;
-			//temp_pte = page_table_addr +
-			//	(i * PTRS_PER_PGD * PTRS_PER_PMD +
-			//	j * PTRS_PER_PMD) * sizeof(unsigned long);
-			//pmd_kernel[i * PTRS_PER_PMD + j] = temp_pte;
+				j * PTRS_PER_PMD -
+				((va_begin & PMD_MASK) >> PAGE_SHIFT))
+				* sizeof(unsigned long);
+			pmd_kernel[(i - pgd_index(va_begin)) * PTRS_PER_PMD + j]
+				= temp_pte;
 			vma = find_vma(mm, temp_pte);
-			if (!pmd || !(*pmd)) {//check if should use if (pmd_none(*pmd) || pmd_bad(*pmd)) {
+			if (!pmd || !(*pmd))
 				continue;
-			}
 			down_write(&current->mm->mmap_sem);
 			if (p != current)
 				down_write(&p->mm->mmap_sem);
-printk("remap: %lx, %lx\n", temp_pte, ((i << PGDIR_SHIFT) + (j << PMD_SHIFT)));
 			if (remap_pfn_range(vma, temp_pte,
 				page_to_pfn(pmd_page(*pmd)),
 				PAGE_SIZE, vma->vm_page_prot)) {
@@ -169,5 +162,10 @@ SYSCALL_DEFINE6(expose_page_table, pid_t, pid,
 		unsigned long, page_table_addr,
 		unsigned long, begin_vaddr,
 		unsigned long, end_vaddr) {
-	return do_expose_page_table(pid, fake_pgd, fake_pmds, page_table_addr, begin_vaddr, end_vaddr);
+	return do_expose_page_table(pid,
+				fake_pgd,
+				fake_pmds,
+				page_table_addr,
+				begin_vaddr,
+				end_vaddr);
 }

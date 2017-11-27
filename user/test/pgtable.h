@@ -1,7 +1,7 @@
 #ifndef _PGTABLE_H_
 #define _PGTABLE_H_
 
-#define __NR_expose_page_table 	245
+#define __NR_expose_page_table	245
 #define PGDIR_SHIFT		30
 #define PMD_SHIFT		21
 #define PAGE_SHIFT		12

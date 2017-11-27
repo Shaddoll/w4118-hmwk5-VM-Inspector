@@ -8,6 +8,7 @@ SYSCALL_DEFINE2(get_pagetable_layout,
 		int, size)
 {
 	struct pagetable_layout_info k_pgtbl_info;
+
 	k_pgtbl_info.pgdir_shift = PGDIR_SHIFT;
 	k_pgtbl_info.pmd_shift = PMD_SHIFT;
 	k_pgtbl_info.page_shift = PAGE_SHIFT;
