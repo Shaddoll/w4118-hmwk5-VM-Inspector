@@ -1,9 +1,20 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include "pgtable.h"
+
+int is_numeric(const char *s, int base, unsigned long *num)
+{
+	char *p;
+
+	if (s == NULL || *s == '\0')
+		return 0;
+	*num = strtoul(s, &p, base);
+	return *p == '\0';
+}
 
 void print_page_table(unsigned long fake_pgd,
 		      unsigned long va_begin,
@@ -49,15 +60,15 @@ void print_page_table(unsigned long fake_pgd,
 
 int main(int argc, char *argv[])
 {
-	pid_t pid;
-	unsigned long va_begin, va_end, fake_pgd, fake_pmds, page_table_addr;
-	int verbose = 0, track = 0;
+	unsigned long fake_pgd, fake_pmds, page_table_addr;
 	int ret, pgd_size, pmd_size, pte_size;
+	unsigned long pid = -1, va_begin = 0, va_end = 0;
+	int verbose = 0, track = 0;
 
 	if (argc == 4) {
-		if (sscanf(argv[1], "%d", &pid) < 0 ||
-		    sscanf(argv[2], "%lx", &va_begin) < 0 ||
-		    sscanf(argv[3], "%lx", &va_end) < 0)
+		if (!is_numeric(argv[1], 10, &pid) ||
+		    !is_numeric(argv[2], 16, &va_begin) ||
+		    !is_numeric(argv[3], 16, &va_end))
 			goto parse_error;
 	} else if (argc == 5) {
 		if (strcmp(argv[1], "-v") == 0)
@@ -66,9 +77,9 @@ int main(int argc, char *argv[])
 			track = 1;
 		else
 			goto parse_error;
-		if (sscanf(argv[2], "%d", &pid) < 0 ||
-		    sscanf(argv[3], "%lx", &va_begin) < 0 ||
-		    sscanf(argv[4], "%lx", &va_end) < 0)
+		if (!is_numeric(argv[2], 10, &pid) ||
+		    !is_numeric(argv[3], 16, &va_begin) ||
+		    !is_numeric(argv[4], 16, &va_end))
 			goto parse_error;
 	} else if (argc == 6) {
 		if (strcmp(argv[1], "-v") == 0 &&
@@ -79,13 +90,13 @@ int main(int argc, char *argv[])
 			verbose = track = 1;
 		else
 			goto parse_error;
-		if (sscanf(argv[3], "%d", &pid) < 0 ||
-		    sscanf(argv[4], "%lx", &va_begin) < 0 ||
-		    sscanf(argv[5], "%lx", &va_end) < 0)
+		if (!is_numeric(argv[3], 10, &pid) ||
+		    !is_numeric(argv[4], 16, &va_begin) ||
+		    !is_numeric(argv[5], 16, &va_end))
 			goto parse_error;
 	} else {
 parse_error:
-		printf("usage: ./<exec> [-v] [-track] pid va_begin va_end");
+		printf("usage: ./<exec> [-v] [-track] pid va_begin va_end\n");
 		return 1;
 	}
 
@@ -114,7 +125,6 @@ parse_error:
 		fprintf(stderr, "error: %s\n", strerror(errno));
 		return 1;
 	}
-	printf("%lx, %lx\n", page_table_addr, pte_size);
 	print_page_table(fake_pgd,
 			 va_begin,
 			 va_end,
