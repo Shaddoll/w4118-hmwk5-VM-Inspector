@@ -3872,7 +3872,7 @@ retry:
 			   ((current->monitor_va_begin & PMD_MASK) >> PAGE_SHIFT)) *
 			  sizeof(unsigned long);
 //printk("handle_mm_fault: page_table_base: %lx, page: %lx, address:%lx, va_begin: %lx\n", 
-current->monitor_va_page_table, page_table_addr, address, current->monitor_va_begin);
+//current->monitor_va_page_table, page_table_addr, address, current->monitor_va_begin);
 	monitor_vma = find_vma(p->mm, page_table_addr);
 	if (p != current)
 		down_write(&p->mm->mmap_sem);

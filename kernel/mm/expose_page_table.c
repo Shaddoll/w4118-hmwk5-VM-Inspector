@@ -24,8 +24,8 @@ int do_expose_page_table(pid_t pid,
 		unsigned long page_table_addr,
 		unsigned long va_begin,
 		unsigned long va_end) {
-	unsigned long temp_pte = page_table_addr, i, j, count_pgd = 0,
-			count_pmd = 0, size_pgd, size_pmd;
+	unsigned long temp_pte = page_table_addr, i, j,
+			size_pgd, size_pmd;
 	int ret,lockid;
 
 	unsigned long *pgd_kernel;
@@ -37,62 +37,63 @@ int do_expose_page_table(pid_t pid,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 
+	rcu_read_lock();
 	if (pid == -1)
 		p = current;
-	else {
-		rcu_read_lock();
+	else
 		p = find_task_by_vpid(pid);
-		rcu_read_unlock();
-	}
+	if (p)
+		get_task_struct(p);
+	rcu_read_unlock();
+	if (p == NULL || p->mm == NULL)
+		return -EINVAL;
 
 	size_pgd = PTRS_PER_PGD;
 	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
 		   PTRS_PER_PMD;
 
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
-	if (pgd_kernel == NULL)
-		return -ENOMEM;
-	pmd_kernel = kcalloc(size_pmd, sizeof(unsigned long), GFP_KERNEL);
-	if (pmd_kernel == NULL) {
-		kfree(pgd_kernel);
+	if (pgd_kernel == NULL) {
+		put_task_struct(p);
 		return -ENOMEM;
 	}
-	if (p == NULL) {
-		kfree(pmd_kernel);
+	pmd_kernel = kcalloc(size_pmd, sizeof(unsigned long), GFP_KERNEL);
+	if (pmd_kernel == NULL) {
+		put_task_struct(p);
 		kfree(pgd_kernel);
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	mm = current->mm;
-	read_lock(&tasklist_lock);
+	//read_lock(&tasklist_lock);
 	spin_lock(&p->monitor_lock);
 	lockid = p->monitor_pid;
-	if (lockid == -1)
+	if (lockid == -1) {
 		p->monitor_pid = current->pid;
-	p->monitor_va_begin = va_begin & PAGE_MASK;
-	p->monitor_va_end = va_end & PAGE_MASK;
-	p->monitor_va_page_table = page_table_addr;
+		p->monitor_va_begin = va_begin & PAGE_MASK;
+		p->monitor_va_end = va_end & PAGE_MASK;
+		p->monitor_va_page_table = page_table_addr;
+	}
 	spin_unlock(&p->monitor_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
 		kfree(pgd_kernel);
-		read_unlock(&tasklist_lock);
+		put_task_struct(p);
+		//read_unlock(&tasklist_lock);
 		return -1;
 	}
-
+printk("pid: %d\n", pid);
+printk("mm_struct: %x\n", p->mm);
 	//lock page table, if p == current, should I grab this lock?
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
+printk("pid: %d\n", pid);
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
 
 		pgd = pgd_offset(p->mm, i<<PGDIR_SHIFT);
+printk("pgd: %x, *pgd: %x\n", pgd, *pgd);
 		pgd_kernel[i] = fake_pmds +
 			(i - pgd_index(va_begin)) * PTRS_PER_PMD * sizeof(unsigned long);
-		//if (*pgd == 0) {
-		//	continue;
-		//}
-
-		//count_pgd++;
 		for (j = get_pmd_start(i, pgd_index(va_begin), va_begin);
 			j < get_pmd_end(i, pgd_index(va_end), va_end);
 			j++) {
@@ -124,7 +125,8 @@ int do_expose_page_table(pid_t pid,
 					spin_unlock(&p->mm->page_table_lock);
 				kfree(pgd_kernel);
 				kfree(pmd_kernel);
-				read_unlock(&tasklist_lock);
+				//read_unlock(&tasklist_lock);
+				put_task_struct(p);
 				return -EAGAIN;
 			}
 			if (p != current)
@@ -133,10 +135,10 @@ int do_expose_page_table(pid_t pid,
 		}
 	}
 
-	//printk("%d, %d\n", count_pgd, count_pmd);
 	if (p != current)
 		spin_unlock(&p->mm->page_table_lock); //unlock page table
-	read_unlock(&tasklist_lock);
+	//read_unlock(&tasklist_lock);
+	put_task_struct(p);
 	ret = copy_to_user((void *)fake_pgd, (void *)pgd_kernel,
 		PTRS_PER_PGD * sizeof(unsigned long));
 	if (ret != 0) {
