@@ -710,6 +710,28 @@ void do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 
+	struct task_struct *pp = NULL;
+	int mpid;
+
+	mpid = -1;
+
+	spin_lock(&tsk->monitor_lock);
+	mpid = tsk->monitoring_pid;
+	spin_unlock(&tsk->monitor_lock);
+
+	if (mpid != -1) {
+		rcu_read_lock();
+		pp = find_task_by_vpid(mpid);
+		rcu_read_unlock();
+	}
+
+	if (pp != NULL) {
+		get_task_struct(pp);
+		spin_lock(&pp->monitor_lock);
+		pp->monitor_pid = -1;
+		spin_unlock(&pp->monitor_lock);
+		put_task_struct(pp);
+	}
 	profile_task_exit(tsk);
 
 	WARN_ON(blk_needs_flush_plug(tsk));
@@ -720,7 +742,7 @@ void do_exit(long code)
 		panic("Attempted to kill the idle task!");
 
 	/*
-	 * If do_exit is called because this processes oopsed, it's possible
+	 * If f is called because this processes oopsed, it's possible
 	 * that get_fs() was left as KERNEL_DS, so reset it to USER_DS before
 	 * continuing. Amongst other possible reasons, this is to prevent
 	 * mm_release()->clear_child_tid() from writing to a user-controlled

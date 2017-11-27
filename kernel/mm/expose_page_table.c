@@ -78,6 +78,9 @@ int do_expose_page_table(pid_t pid,
 		p->monitor_va_page_table = page_table_addr;
 	}
 	spin_unlock(&p->monitor_lock);
+	spin_lock(&current->monitor_lock);
+	current->monitoring_pid = p->pid;
+	spin_unlock(&current->monitor_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
 		kfree(pgd_kernel);
