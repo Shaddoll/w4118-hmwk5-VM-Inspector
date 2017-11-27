@@ -27,6 +27,7 @@ int do_expose_page_table(pid_t pid,
 		unsigned long page_table_addr,
 		unsigned long va_begin,
 		unsigned long va_end) {
+	const unsigned long upper_bound_addr = 0x7fffffffff;
 	unsigned long temp_pte = page_table_addr;
 	unsigned long i, j, size_pgd, size_pmd;
 	int ret, lockid;
@@ -40,6 +41,10 @@ int do_expose_page_table(pid_t pid,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 
+	if (va_begin > va_end)
+		return -EINVAL;
+
+	va_end = va_end < upper_bound_addr ? va_end : upper_bound_addr;
 	rcu_read_lock();
 	if (pid == -1)
 		p = current;
