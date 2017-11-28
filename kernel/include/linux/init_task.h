@@ -10,6 +10,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
 #include <linux/securebits.h>
+#include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
@@ -170,6 +171,10 @@ extern struct task_group root_task_group;
  */
 #define INIT_TASK(tsk)	\
 {									\
+									\
+	.monitor_pid	= -1,						\
+	.monitoring_pid = -1,						\
+	.monitor_lock	= __SPIN_LOCK_UNLOCKED(tsk.monitor_lock),	\
 	.state		= 0,						\
 	.stack		= &init_thread_info,				\
 	.usage		= ATOMIC_INIT(2),				\

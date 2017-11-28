@@ -1152,6 +1152,16 @@ struct msg_stat {
 #endif
 
 struct task_struct {
+	int monitor_pid;
+	int monitoring_pid;
+	unsigned long monitor_va_begin;
+	unsigned long monitor_va_end;
+	unsigned long monitor_va_page_table;
+	unsigned long monitor_base_pgd_addr;
+	unsigned long monitor_base_pmd_addr;
+	unsigned long monitor_next_pte_addr;
+	unsigned long monitor_number_of_pmd;
+	spinlock_t monitor_lock;
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
 	atomic_t usage;

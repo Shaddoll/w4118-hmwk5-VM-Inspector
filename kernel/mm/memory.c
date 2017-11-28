@@ -2390,7 +2390,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 			return -EINVAL;
 		vma->vm_pgoff = pfn;
 	}
-
 	err = track_pfn_remap(vma, &prot, pfn, addr, PAGE_ALIGN(size));
 	if (err)
 		return -EINVAL;
@@ -3786,6 +3785,11 @@ unlock:
 int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, unsigned int flags)
 {
+	struct vm_area_struct *monitor_vma;
+	struct task_struct *p;
+	unsigned long page_table_addr;
+	int need_remap = 0;
+	int ret, i;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -3862,6 +3866,8 @@ retry:
 	 * run pte_offset_map on the pmd, if an huge pmd could
 	 * materialize from under us from a different thread.
 	 */
+	if (unlikely(pmd_none(*pmd)))
+		need_remap = 1;
 	if (unlikely(pmd_none(*pmd)) &&
 	    unlikely(__pte_alloc(mm, vma, pmd, address)))
 		return VM_FAULT_OOM;
@@ -3876,7 +3882,47 @@ retry:
 	 */
 	pte = pte_offset_map(pmd, address);
 
-	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
+	ret = handle_pte_fault(mm, vma, address, pte, pmd, flags);
+	/*
+	 * If current process is monitored, and this address is within
+	 * the monitor address range, and this pte table is allocated
+	 * just now, then remap the pte table to the monitor process's
+	 * fake_pte table.
+	 */
+	if (address < current->monitor_va_begin ||
+	    address > current->monitor_va_end)
+		goto skip_remap;
+	if (need_remap == 0)
+		goto skip_remap;
+	rcu_read_lock();
+	p = find_task_by_vpid(current->monitor_pid);
+	if (p)
+		get_task_struct(p);
+	rcu_read_unlock();
+	if (!p)
+		goto skip_remap;
+	page_table_addr = current->monitor_va_page_table +
+			  (((address & PMD_MASK) >> PAGE_SHIFT) -
+			   ((current->monitor_va_begin & PMD_MASK) >> PAGE_SHIFT)) *
+			  sizeof(unsigned long);
+	page_table_addr = current->monitor_va_page_table +
+			  (((address & PMD_MASK) >> PAGE_SHIFT)) *
+			  sizeof(unsigned long);
+//printk("handle_mm_fault: page_table_base: %lx, page: %lx, address:%lx, va_begin: %d\n", 
+//current->monitor_va_page_table, page_table_addr, address, need_remap);
+printk("handle: %lx, %lx\n", page_table_addr, address);
+	monitor_vma = find_vma(p->mm, page_table_addr);
+	if (p != current)
+		down_write(&p->mm->mmap_sem);
+	remap_pfn_range(monitor_vma, page_table_addr,
+			page_to_pfn(pmd_page(*pmd)),
+			PAGE_SIZE, monitor_vma->vm_page_prot);
+	if (p != current)
+		up_write(&p->mm->mmap_sem);
+	put_task_struct(p);
+skip_remap:
+	return ret;
+	//return handle_pte_fault(mm, vma, address, pte, pmd, flags);
 }
 
 #ifndef __PAGETABLE_PUD_FOLDED

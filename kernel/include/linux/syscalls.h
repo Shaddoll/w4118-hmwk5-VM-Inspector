@@ -65,6 +65,7 @@ struct old_linux_dirent;
 struct perf_event_attr;
 struct file_handle;
 struct sigaltstack;
+struct pagetable_layout_info;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -196,6 +197,15 @@ extern struct trace_event_functions exit_syscall_print_funcs;
 	}								\
 	SYSCALL_ALIAS(sys##name, SyS##name);				\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+
+asmlinkage long sys_get_pagetable_layout(struct pagetable_layout_info __user * pgtbl_info,
+					int size);
+asmlinkage long sys_expose_page_table(pid_t pid,
+					unsigned long fake_pgd,
+					unsigned long fake_pmds,
+					unsigned long page_table_addr,
+					unsigned long begin_vaddr,
+					unsigned long end_vaddr);
 
 asmlinkage long sys_time(time_t __user *tloc);
 asmlinkage long sys_stime(time_t __user *tptr);
