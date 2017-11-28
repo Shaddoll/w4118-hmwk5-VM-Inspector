@@ -1,0 +1,3 @@
+We have dumped the pagemaps of Zygote and Chrome and find that they share the system library mapped region(*.so files)
+and system resouce mapped region(*.ttf files). There is a region called `[vectors]` which is also shared by all application
+processes.
