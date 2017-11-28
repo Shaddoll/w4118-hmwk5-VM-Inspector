@@ -3873,24 +3873,22 @@ retry:
 			  (((address & PMD_MASK) >> PAGE_SHIFT) -
 			   ((current->monitor_va_begin & PMD_MASK) >> PAGE_SHIFT)) *
 			  sizeof(unsigned long);
-	page_table_addr = current->monitor_va_page_table +
-			  (((address & PMD_MASK) >> PAGE_SHIFT)) *
-			  sizeof(unsigned long);
-//printk("handle_mm_fault: page_table_base: %lx, page: %lx, address:%lx, va_begin: %d\n", 
-//current->monitor_va_page_table, page_table_addr, address, need_remap);
-printk("handle: %lx, %lx\n", page_table_addr, address);
 	monitor_vma = find_vma(p->mm, page_table_addr);
-	if (p != current)
+	if (p != current) {
+		spin_lock(&p->mm->page_table_lock);
 		down_write(&p->mm->mmap_sem);
+	}
+	zap_page_range(monitor_vma, page_table_addr, PAGE_SIZE, NULL);
 	remap_pfn_range(monitor_vma, page_table_addr,
 			page_to_pfn(pmd_page(*pmd)),
 			PAGE_SIZE, monitor_vma->vm_page_prot);
-	if (p != current)
+	if (p != current) {
 		up_write(&p->mm->mmap_sem);
+		spin_unlock(&p->mm->page_table_lock);
+	}
 	put_task_struct(p);
 skip_remap:
 	return ret;
-	//return handle_pte_fault(mm, vma, address, pte, pmd, flags);
 }
 
 #ifndef __PAGETABLE_PUD_FOLDED
