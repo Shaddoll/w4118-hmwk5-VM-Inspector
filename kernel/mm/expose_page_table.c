@@ -120,6 +120,7 @@ int do_expose_page_table(pid_t pid,
 			down_write(&current->mm->mmap_sem);
 			if (p != current)
 				down_write(&p->mm->mmap_sem);
+	zap_page_range(vma, temp_pte, PAGE_SIZE, NULL);
 			if (remap_pfn_range(vma, temp_pte,
 				page_to_pfn(pmd_page(*pmd)),
 				PAGE_SIZE, vma->vm_page_prot)) {
