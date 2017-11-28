@@ -129,12 +129,15 @@ parse_error:
 			 va_begin,
 			 va_end,
 			 verbose);
+	fflush(stdout);
 	while (track) {
 		sleep(5);
+		printf("========================================\n");
 		print_page_table(fake_pgd,
 				va_begin,
 				va_end,
 				verbose);
+		fflush(stdout);
 	}
 	return 0;
 }
