@@ -1,3 +1,8 @@
-We have dumped the pagemaps of Zygote and Chrome and find that they share the system library mapped region(*.so files)
-and system resouce mapped region(*.ttf files). There is a region called `[vectors]` which is also shared by all application
+In hw2, we have analyzed that zygote is the parent process of all application processes which preloads some java
+classes and libraries, which are often used by application processes. So the library region is shared by all application
 processes.
+
+Using the vm_inspector program, We have dumped the pagemaps of Zygote and Chrome and find that they share the system 
+library mapped region(*.so files) and system resouce mapped region(*.ttf files). There is a region called `[vectors]`
+which is also shared by all application processes.
+
