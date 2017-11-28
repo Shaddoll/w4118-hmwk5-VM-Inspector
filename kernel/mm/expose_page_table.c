@@ -60,6 +60,8 @@ int do_expose_page_table(pid_t pid,
 	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
 		   PTRS_PER_PMD;
 
+	if (va_begin > va_end)
+		size_pmd = size_pgd = 0;
 	pgd_kernel = kcalloc(size_pgd, sizeof(unsigned long), GFP_KERNEL);
 	if (pgd_kernel == NULL) {
 		put_task_struct(p);
@@ -82,15 +84,17 @@ int do_expose_page_table(pid_t pid,
 		p->monitor_va_page_table = page_table_addr;
 	}
 	spin_unlock(&p->monitor_lock);
-	spin_lock(&current->monitor_lock);
-	current->monitoring_pid = p->pid;
-	spin_unlock(&current->monitor_lock);
 	if (lockid != -1) {
 		kfree(pmd_kernel);
 		kfree(pgd_kernel);
 		put_task_struct(p);
 		return -1;
 	}
+	spin_lock(&current->monitor_lock);
+	current->monitoring_pid = p->pid;
+	spin_unlock(&current->monitor_lock);
+	if (va_begin > va_end)
+		return 0;
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
