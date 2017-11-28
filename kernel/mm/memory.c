@@ -2298,7 +2298,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		return -ENOMEM;
 	arch_enter_lazy_mmu_mode();
 	do {
-		BUG_ON(!pte_none(*pte));
+		//BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -3789,7 +3789,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct task_struct *p;
 	unsigned long page_table_addr;
 	int need_remap = 0;
-	int ret, i;
+	int ret;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -3908,9 +3908,6 @@ retry:
 	page_table_addr = current->monitor_va_page_table +
 			  (((address & PMD_MASK) >> PAGE_SHIFT)) *
 			  sizeof(unsigned long);
-//printk("handle_mm_fault: page_table_base: %lx, page: %lx, address:%lx, va_begin: %d\n", 
-//current->monitor_va_page_table, page_table_addr, address, need_remap);
-printk("handle: %lx, %lx\n", page_table_addr, address);
 	monitor_vma = find_vma(p->mm, page_table_addr);
 	if (p != current)
 		down_write(&p->mm->mmap_sem);
@@ -3922,7 +3919,6 @@ printk("handle: %lx, %lx\n", page_table_addr, address);
 	put_task_struct(p);
 skip_remap:
 	return ret;
-	//return handle_pte_fault(mm, vma, address, pte, pmd, flags);
 }
 
 #ifndef __PAGETABLE_PUD_FOLDED
