@@ -53,8 +53,12 @@ int do_expose_page_table(pid_t pid,
 	if (p)
 		get_task_struct(p);
 	rcu_read_unlock();
-	if (p == NULL || p->mm == NULL)
+	if (p == NULL)
 		return -EINVAL;
+	if (p->mm == NULL) {
+		put_task_struct(p);
+		return -EINVAL;
+	}
 
 	size_pgd = PTRS_PER_PGD;
 	size_pmd = (pgd_index(va_end) - pgd_index(va_begin) + 1) *
