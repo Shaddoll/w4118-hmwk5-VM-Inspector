@@ -91,7 +91,6 @@ int do_expose_page_table(pid_t pid,
 		put_task_struct(p);
 		return -1;
 	}
-	//lock page table, if p == current, should I grab this lock?
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
