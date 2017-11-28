@@ -93,8 +93,10 @@ int do_expose_page_table(pid_t pid,
 	spin_lock(&current->monitor_lock);
 	current->monitoring_pid = p->pid;
 	spin_unlock(&current->monitor_lock);
-	if (va_begin > va_end)
+	if (va_begin > va_end) {
+		put_task_struct(p);
 		return 0;
+	}
 	if (p != current)
 		spin_lock(&p->mm->page_table_lock);
 	for (i = pgd_index(va_begin); i <= pgd_index(va_end); i++) {
@@ -161,6 +163,8 @@ int do_expose_page_table(pid_t pid,
 		kfree(pmd_kernel);
 		return -EFAULT;
 	}
+	kfree(pgd_kernel);
+	kfree(pmd_kernel);
 	return 0;
 }
 
